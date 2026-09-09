@@ -1,0 +1,2461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>DRUG AWARENESS VR | Prototype</title>
+  <meta name="description" content="Experience the consequences. Never the substance. A WebXR Drug Awareness VR Prototype designed for Meta Quest 3S and desktop.">
+  <!-- A-Frame 1.6.0 -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       GLOBAL STYLES & DESIGN TOKENS
+       ========================================================================== */
+    :root {
+      --bg-dark: #07090e;
+      --bg-surface: rgba(15, 23, 42, 0.85);
+      --bg-card: rgba(30, 41, 59, 0.7);
+      --primary: #0284c7;
+      --primary-light: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.35);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.3);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-subtle: rgba(148, 163, 184, 0.15);
+      --border-glow: rgba(56, 189, 248, 0.4);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-dark);
+      font-family: var(--font-body);
+      color: var(--text-main);
+    }
+
+    /* A-Frame canvas full cover */
+    a-scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* ==========================================================================
+       SIMULATED IMPAIRMENT VISUAL OVERLAY (SCREEN SPACE)
+       ========================================================================== */
+    #impairmentScreenOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 50;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+      background: radial-gradient(circle at center, transparent 35%, rgba(10, 15, 30, 0.75) 75%, rgba(0, 0, 0, 0.95) 100%);
+      box-shadow: inset 0 0 120px rgba(56, 189, 248, 0.15);
+    }
+
+    #impairmentScreenOverlay.active {
+      opacity: 1;
+      animation: tunnelPulse 6s infinite alternate ease-in-out;
+    }
+
+    #impairmentScreenOverlay.reduced {
+      opacity: 0.3 !important;
+      animation: none !important;
+    }
+
+    @keyframes tunnelPulse {
+      0% {
+        background: radial-gradient(circle at center, transparent 40%, rgba(10, 15, 30, 0.7) 80%, rgba(0, 0, 0, 0.95) 100%);
+        backdrop-filter: blur(1.5px);
+      }
+      50% {
+        background: radial-gradient(circle at center, transparent 28%, rgba(20, 15, 35, 0.8) 72%, rgba(0, 0, 0, 0.98) 100%);
+        backdrop-filter: blur(3px);
+      }
+      100% {
+        background: radial-gradient(circle at center, transparent 36%, rgba(10, 20, 30, 0.75) 78%, rgba(0, 0, 0, 0.95) 100%);
+        backdrop-filter: blur(2px);
+      }
+    }
+
+    /* ==========================================================================
+       DESKTOP & VR 2D HUD OVERLAYS
+       ========================================================================== */
+    #hudContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 18px 24px;
+    }
+
+    /* Top Navigation Bar */
+    .hud-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: auto;
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.75rem;
+      letter-spacing: 1.5px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: 0.5px;
+      color: var(--text-main);
+    }
+
+    .hud-controls-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hud-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+
+    .hud-btn:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--primary-light);
+      transform: translateY(-1px);
+    }
+
+    .hud-btn.active {
+      background: var(--primary);
+      border-color: var(--primary-light);
+      color: #fff;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    .hud-btn.btn-danger {
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .hud-btn.btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: var(--danger);
+    }
+
+    .vr-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .vr-status-badge.unavailable {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    /* Closed Captions Bar */
+    #captionsContainer {
+      align-self: center;
+      max-width: 750px;
+      width: 90%;
+      background: rgba(3, 7, 18, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: var(--radius-md);
+      padding: 12px 24px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      pointer-events: auto;
+      transition: var(--transition);
+      margin-bottom: 20px;
+    }
+
+    #captionsContainer.hidden {
+      display: none;
+    }
+
+    .caption-speaker {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-light);
+      margin-bottom: 4px;
+    }
+
+    .caption-text {
+      font-size: 0.98rem;
+      line-height: 1.45;
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    /* Desktop Controls Guide / Quick Help */
+    .hud-bottombar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .desktop-hint {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      pointer-events: auto;
+    }
+
+    .desktop-hint kbd {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: var(--primary-light);
+    }
+
+    /* ==========================================================================
+       COMFORT SETTINGS MODAL
+       ========================================================================== */
+    #comfortModal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 440px;
+      max-width: 90vw;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
+      z-index: 200;
+      pointer-events: auto;
+      display: none;
+    }
+
+    #comfortModal.visible {
+      display: block;
+      animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: translate(-50%, -46%) scale(0.95); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: var(--transition);
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .setting-info h4 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .setting-info p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #334155;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Modal Actions */
+    .modal-actions {
+      margin-top: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: none;
+      transition: var(--transition);
+    }
+
+    .action-btn-warning {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: var(--warning);
+    }
+
+    .action-btn-warning:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+
+    .action-btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--danger);
+    }
+
+    .action-btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    /* ==========================================================================
+       DESKTOP INTERACTIVE HUD DIALOG (SYNCHRONIZED WITH 3D WORLD)
+       ========================================================================== */
+    #desktopInteractiveCard {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      max-width: 92vw;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+      z-index: 120;
+      pointer-events: auto;
+      display: none;
+      transition: var(--transition);
+    }
+
+    #desktopInteractiveCard.active {
+      display: block;
+      animation: cardPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes cardPop {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    .card-category {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--primary-light);
+      margin-bottom: 6px;
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.28rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .card-body {
+      font-size: 0.92rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+
+    .card-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .card-choice-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: center;
+    }
+
+    .card-choice-btn:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--primary-light);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(2, 132, 199, 0.2);
+    }
+
+    .card-choice-btn.btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0369a1);
+      border-color: var(--primary-light);
+    }
+
+    .card-choice-btn.btn-success {
+      background: linear-gradient(135deg, #059669, #047857);
+      border-color: #34d399;
+    }
+
+    .card-choice-btn.btn-warning {
+      background: linear-gradient(135deg, #d97706, #b45309);
+      border-color: #fbbf24;
+    }
+
+    .card-choice-btn.btn-danger {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      border-color: #f87171;
+    }
+
+    /* ==========================================================================
+       AWARENESS INFO / MODAL OVERLAYS
+       ========================================================================== */
+    #infoModal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 580px;
+      max-width: 92vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 30px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8);
+      z-index: 250;
+      pointer-events: auto;
+      display: none;
+    }
+
+    #infoModal.visible {
+      display: block;
+      animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .info-section {
+      margin-bottom: 20px;
+    }
+
+    .info-section h3 {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      color: var(--primary-light);
+      margin-bottom: 8px;
+    }
+
+    .info-section p {
+      font-size: 0.88rem;
+      line-height: 1.55;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .info-section ul {
+      margin-left: 20px;
+      font-size: 0.86rem;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.3);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-light);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ==========================================================================
+       SCREEN-SPACE IMPAIRMENT EFFECT (FOR DESKTOP & WEBXR OVERLAY)
+       ========================================================================== -->
+  <div id="impairmentScreenOverlay"></div>
+
+  <!-- ==========================================================================
+       HUD / 2D INTERACTION SYSTEM
+       ========================================================================== */
+  <div id="hudContainer">
+    <!-- Top Bar Navigation -->
+    <header class="hud-topbar">
+      <div class="hud-brand">
+        <span class="brand-badge">VR Prototype</span>
+        <span class="brand-title">DRUG AWARENESS VR</span>
+      </div>
+
+      <div class="hud-controls-group">
+        <span id="vrStatusBadge" class="vr-status-badge">Detecting WebXR...</span>
+        <button id="btnEnterVR" class="hud-btn" title="Enter WebXR Immersive VR on Quest 3S">
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M21 7.5a2.5 2.5 0 0 0-2.5-2.5H5.5A2.5 2.5 0 0 0 3 7.5v9A2.5 2.5 0 0 0 5.5 19h13a2.5 2.5 0 0 0 2.5-2.5v-9zM7.5 15a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5zm9 0a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+          ENTER VR
+        </button>
+        <button id="btnComfort" class="hud-btn" title="VR Comfort & Accessibility Settings">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Comfort Menu
+        </button>
+        <button id="btnAudioToggle" class="hud-btn active" title="Audio Soundscape ON/OFF">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z"/></svg>
+          Sound: ON
+        </button>
+        <button id="btnExitExperience" class="hud-btn btn-danger" title="Exit to Main Menu">
+          Exit Experience
+        </button>
+      </div>
+    </header>
+
+    <!-- Closed Captions Container -->
+    <div id="captionsContainer">
+      <div id="captionSpeaker" class="caption-speaker">SYSTEM GUIDE</div>
+      <div id="captionText" class="caption-text">Welcome to Drug Awareness VR. Explore the consequences safely.</div>
+    </div>
+
+    <!-- Bottom Bar Desktop Hints -->
+    <footer class="hud-bottombar">
+      <div class="desktop-hint">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &bull; <kbd>Mouse</kbd> Look Around &bull; <kbd>Click</kbd> Interact &bull; Meta Quest 3S: Point with Laser Ray + Pull Trigger
+      </div>
+      <div class="desktop-hint">
+        Scenario: <span id="hudCurrentSceneLabel" style="color:var(--primary-light); font-weight:600;">Welcome Pavilion</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ==========================================================================
+       SYNCHRONIZED INTERACTIVE CARD (DESKTOP & VR FALLBACK UI)
+       ========================================================================== -->
+  <div id="desktopInteractiveCard">
+    <div id="cardCategory" class="card-category">PEER PRESSURE SCENARIO</div>
+    <div id="cardTitle" class="card-title">Someone offers you Substance X. What do you do?</div>
+    <div id="cardBody" class="card-body">A classmate at a campus social gathering approaches you and urges you to try an unfamiliar pill called "Substance X".</div>
+    <div id="cardButtons" class="card-buttons-grid">
+      <!-- Injected by JavaScript -->
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       COMFORT & ACCESSIBILITY MODAL
+       ========================================================================== */ -->
+  <div id="comfortModal">
+    <div class="modal-header">
+      <h3 class="modal-title">VR Comfort & Accessibility</h3>
+      <button id="btnCloseComfort" class="modal-close">&times;</button>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <h4>Comfort Mode</h4>
+        <p>Limits rapid visual transitions and enforces comfort safety limits</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggleComfortMode" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <h4>Reduced Visual Effects</h4>
+        <p>Softens tunnel vision, blur, and distortion in simulation</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggleReducedEffects">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <h4>Spatial Audio</h4>
+        <p>Generative ambient soundscapes and auditory simulation</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggleModalAudio" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-info">
+        <h4>Captions & Transcripts</h4>
+        <p>Display text captions for dialogue and environmental cues</p>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggleCaptions" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btnModalSkipSim" class="action-btn action-btn-warning">Skip Simulation Directly to Consequences</button>
+      <button id="btnModalReset" class="action-btn action-btn-danger">Restart from Beginning</button>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       EDUCATIONAL RESOURCES / SAFETY INFO MODAL
+       ========================================================================== */ -->
+  <div id="infoModal">
+    <div class="modal-header">
+      <h3 class="modal-title">Educational Safety & Support</h3>
+      <button id="btnCloseInfo" class="modal-close">&times;</button>
+    </div>
+    <div class="info-section">
+      <h3>About "Substance X"</h3>
+      <p>Substance X is a strictly fictional representation used to illustrate the physiological principles of cognitive impairment, reaction latency, and decision degradation without glorifying or detailing real-world drugs.</p>
+    </div>
+    <div class="info-section">
+      <h3>Refusal Strategies: The CLEAR Model</h3>
+      <ul>
+        <li><strong>C - Calm:</strong> Keep a steady, confident posture and voice.</li>
+        <li><strong>L - Look:</strong> Make direct eye contact without aggression.</li>
+        <li><strong>E - Explain:</strong> Give a clear, straightforward "No, I'm good."</li>
+        <li><strong>A - Alternative:</strong> Offer an alternate activity ("Let's grab a drink of water or head outside").</li>
+        <li><strong>R - Remove:</strong> Politely step away from the pressurized setting.</li>
+      </ul>
+    </div>
+    <div class="info-section">
+      <h3>Confidential Support Resources</h3>
+      <p>If you or someone you know is facing substance pressure or challenges, confidential help is available 24/7:</p>
+      <ul>
+        <li>SAMHSA National Helpline: 1-800-662-4357 (Free, confidential 24/7)</li>
+        <li>Crisis Text Line: Text HOME to 741741</li>
+        <li>Campus Health & Counseling Services</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       A-FRAME 3D WEBXR SCENE
+       ========================================================================== -->
+  <a-scene
+    renderer="antialias: true; colorManagement: true; foveationLevel: 1;"
+    vr-mode-ui="enabled: false"
+    background="color: #07090e"
+    loading-screen="dotsColor: #38bdf8; backgroundColor: #07090e">
+
+    <!-- ASSET MANAGEMENT (PROCEDURAL PRIMITIVES & SOUNDS) -->
+    <a-assets timeout="3000">
+      <!-- Mixins for reusable styling -->
+      <a-mixin id="interactivePanel"
+        material="color: #0f172a; opacity: 0.92; transparent: true; roughness: 0.3; metalness: 0.1"
+        geometry="primitive: plane">
+      </a-mixin>
+      <a-mixin id="vrBtn"
+        class="clickable"
+        geometry="primitive: plane; width: 1.4; height: 0.35"
+        material="color: #1e293b; opacity: 0.95; shader: flat"
+        text="align: center; color: #ffffff; width: 3.2; font: roboto">
+      </a-mixin>
+    </a-assets>
+
+    <!-- ==========================================================================
+         PLAYER CAMERA RIG & QUEST 3S CONTROLLERS
+         ========================================================================== -->
+    <a-entity id="cameraRig" position="0 0 0">
+      <!-- Camera with look-controls & WASD -->
+      <a-camera id="head" position="0 1.6 0" look-controls="pointerLockEnabled: false" wasd-controls="acceleration: 18">
+        <!-- Desktop Mouse Raycaster -->
+        <a-entity id="mouseRay"
+          cursor="rayOrigin: mouse"
+          raycaster="objects: .clickable; far: 40; interval: 25">
+        </a-entity>
+
+        <!-- In-VR Subtitle Panel (Pinned below gaze in VR) -->
+        <a-entity id="vrSubtitleRig" position="0 -0.42 -1.1" visible="false">
+          <a-plane width="1.3" height="0.22" color="#030712" material="opacity: 0.88; transparent: true">
+            <a-text id="vrSubtitleText" value="" align="center" width="1.2" color="#f8fafc" baseline="center"></a-text>
+          </a-plane>
+        </a-entity>
+
+        <!-- In-VR Camera Impairment Plane (Shader/Color tint for VR headset) -->
+        <a-entity id="vrImpairmentPlane" position="0 0 -0.4"
+          geometry="primitive: plane; width: 1.2; height: 1.2"
+          material="color: #000000; shader: flat; transparent: true; opacity: 0; depthTest: false"
+          visible="false">
+        </a-entity>
+      </a-camera>
+
+      <!-- Meta Quest 3S Left Hand Controller -->
+      <a-entity id="leftController"
+        laser-controls="hand: left"
+        raycaster="objects: .clickable; far: 25; lineColor: #38bdf8; lineOpacity: 0.8"
+        oculus-touch-controls="hand: left">
+      </a-entity>
+
+      <!-- Meta Quest 3S Right Hand Controller -->
+      <a-entity id="rightController"
+        laser-controls="hand: right"
+        raycaster="objects: .clickable; far: 25; lineColor: #38bdf8; lineOpacity: 0.8"
+        oculus-touch-controls="hand: right">
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         LIGHTING & ATMOSPHERE
+         ========================================================================== -->
+    <a-entity id="ambientLight" light="type: ambient; color: #94a3b8; intensity: 0.65"></a-entity>
+    <a-entity id="keyLight" light="type: directional; color: #e2e8f0; intensity: 0.8; castShadow: false" position="4 12 6"></a-entity>
+    <a-entity id="accentCyanLight" light="type: point; color: #38bdf8; intensity: 1.2; distance: 20" position="0 4 -3"></a-entity>
+
+    <!-- ==========================================================================
+         SCENE 1 & 2: WELCOME & SAFETY DISCLAIMER PAVILION
+         ========================================================================== -->
+    <a-entity id="envWelcomePavilion" visible="true">
+      <!-- Futuristic circular platform floor -->
+      <a-cylinder position="0 -0.05 0" radius="10" height="0.1" color="#0b1120" material="roughness: 0.7"></a-cylinder>
+      <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="4.8" radius-outer="5.1" color="#0284c7" material="shader: flat; opacity: 0.7"></a-ring>
+      <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="8.8" radius-outer="9.0" color="#38bdf8" material="shader: flat; opacity: 0.4"></a-ring>
+
+      <!-- Exhibition Columns with ambient cyan glow -->
+      <a-cylinder position="-6 3 -4" radius="0.3" height="6" color="#1e293b"></a-cylinder>
+      <a-cylinder position="6 3 -4" radius="0.3" height="6" color="#1e293b"></a-cylinder>
+      <a-cylinder position="-6 3 4" radius="0.3" height="6" color="#1e293b"></a-cylinder>
+      <a-cylinder position="6 3 4" radius="0.3" height="6" color="#1e293b"></a-cylinder>
+
+      <!-- Floating Holographic Welcome Board in 3D Space -->
+      <a-entity id="welcomeBoard3D" position="0 1.8 -3.2" rotation="0 0 0">
+        <!-- Main Board Backing -->
+        <a-plane width="3.6" height="2.4" color="#0f172a" material="opacity: 0.92; transparent: true; roughness: 0.2">
+          <!-- Border Highlight -->
+          <a-ring position="0 0 0.01" radius-inner="1.7" radius-outer="1.72" color="#38bdf8" material="shader: flat; opacity: 0.3"></a-ring>
+
+          <!-- Header Titles -->
+          <a-text value="DRUG AWARENESS VR" position="0 0.8 0.02" align="center" width="5.8" color="#38bdf8" font="roboto" font-weight="bold"></a-text>
+          <a-text value="Experience the consequences. Never the substance." position="0 0.5 0.02" align="center" width="3.5" color="#cbd5e1" font="roboto"></a-text>
+
+          <!-- Description Text -->
+          <a-text id="welcomeBoardBodyText"
+            value="Welcome to the immersive educational simulation. Discover how impairment affects cognitive perception, judgement, and real-world outcomes in a controlled, risk-free environment."
+            position="0 0.05 0.02" align="center" width="2.8" color="#94a3b8" wrap-count="38">
+          </a-text>
+
+          <!-- Interactive 3D Buttons on Board -->
+          <a-entity id="btn3DEnterExp" class="clickable interactive-btn" position="-0.8 -0.7 0.03"
+            geometry="primitive: plane; width: 1.4; height: 0.38"
+            material="color: #0284c7; shader: flat"
+            text="value: ENTER EXPERIENCE; align: center; width: 3.2; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DAbout" class="clickable interactive-btn" position="0.8 -0.7 0.03"
+            geometry="primitive: plane; width: 1.2; height: 0.38"
+            material="color: #1e293b; shader: flat"
+            text="value: ABOUT & SAFETY; align: center; width: 3.2; color: #94a3b8">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+
+      <!-- Safety Disclaimer Board (Swapped in state) -->
+      <a-entity id="disclaimerBoard3D" position="0 1.8 -3.2" rotation="0 0 0" visible="false">
+        <a-plane width="3.6" height="2.5" color="#0f172a" material="opacity: 0.95; transparent: true; roughness: 0.2">
+          <!-- Warning Icon Accent -->
+          <a-triangle position="0 0.85 0.02" vertex-a="0 0.2 0" vertex-b="-0.2 -0.15 0" vertex-c="0.2 -0.15 0" color="#f59e0b" material="shader: flat"></a-triangle>
+          <a-text value="!" position="0 0.85 0.03" align="center" width="3.5" color="#000000" font="roboto"></a-text>
+
+          <a-text value="SAFETY & EDUCATIONAL DISCLAIMER" position="0 0.55 0.02" align="center" width="4.5" color="#f59e0b" font="roboto"></a-text>
+          
+          <a-text
+            value="This is a fictional educational simulation. No real drugs or substances are involved. The effects shown are simplified representations intended for awareness and education.\n\nNever consume unknown substances. You may exit the simulation at any moment using the comfort menu or Exit button."
+            position="0 -0.05 0.02" align="center" width="2.9" color="#e2e8f0" wrap-count="36">
+          </a-text>
+
+          <!-- Action Buttons -->
+          <a-entity id="btn3DUnderstand" class="clickable interactive-btn" position="-0.8 -0.8 0.03"
+            geometry="primitive: plane; width: 1.4; height: 0.38"
+            material="color: #10b981; shader: flat"
+            text="value: I UNDERSTAND; align: center; width: 3.2; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DExitDisclaimer" class="clickable interactive-btn" position="0.8 -0.8 0.03"
+            geometry="primitive: plane; width: 1.2; height: 0.38"
+            material="color: #ef4444; shader: flat"
+            text="value: EXIT; align: center; width: 3.2; color: #ffffff">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 3: SCENARIO SELECTION GALLERY
+         ========================================================================== -->
+    <a-entity id="envScenarioSelection" visible="false">
+      <!-- Ambient scenario gallery plinths -->
+      <a-cylinder position="0 -0.05 0" radius="12" height="0.1" color="#090d16"></a-cylinder>
+
+      <a-entity position="0 2.5 -3.8">
+        <a-text value="SELECT EDUCATIONAL SCENARIO" align="center" width="5.5" color="#38bdf8" font="roboto"></a-text>
+        <a-text value="Explore real-world decision trees and understand impairment risks" align="center" position="0 -0.3 0" width="3.2" color="#94a3b8"></a-text>
+      </a-entity>
+
+      <!-- Card 1: Peer Pressure (PLAYABLE MVP) -->
+      <a-entity id="cardPeerPressure" class="clickable interactive-btn" position="-2.2 1.6 -3.2" rotation="0 18 0">
+        <a-plane width="1.3" height="1.8" color="#0f172a" material="opacity: 0.95; transparent: true; roughness: 0.3">
+          <a-plane position="0 0.65 0.01" width="1.2" height="0.25" color="#0284c7" material="shader: flat">
+            <a-text value="ACTIVE PLAYABLE" align="center" width="2.6" color="#ffffff"></a-text>
+          </a-plane>
+          <a-text value="Peer Pressure" position="0 0.35 0.01" align="center" width="3.4" color="#38bdf8"></a-text>
+          <a-text value="College social gathering.\nA friend offers an unknown\nSubstance X.\n\nPractice refusal & explore\nconsequential branches." position="0 -0.15 0.01" align="center" width="2.2" color="#cbd5e1" wrap-count="24"></a-text>
+          <a-plane position="0 -0.65 0.02" width="1.1" height="0.28" color="#10b981" material="shader: flat">
+            <a-text value="LAUNCH SCENARIO" align="center" width="2.7" color="#ffffff"></a-text>
+          </a-plane>
+        </a-plane>
+      </a-entity>
+
+      <!-- Card 2: Curiosity (COMING SOON) -->
+      <a-entity position="-0.75 1.6 -3.5">
+        <a-plane width="1.2" height="1.8" color="#1e293b" material="opacity: 0.7; transparent: true">
+          <a-plane position="0 0.65 0.01" width="1.1" height="0.22" color="#334155" material="shader: flat">
+            <a-text value="COMING SOON" align="center" width="2.4" color="#94a3b8"></a-text>
+          </a-plane>
+          <a-text value="Curiosity" position="0 0.35 0.01" align="center" width="3.2" color="#64748b"></a-text>
+          <a-text value="Deconstructing myths\naround experimentation\nand instant relief." position="0 -0.1 0.01" align="center" width="2.1" color="#64748b" wrap-count="22"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Card 3: Stress (COMING SOON) -->
+      <a-entity position="0.75 1.6 -3.5">
+        <a-plane width="1.2" height="1.8" color="#1e293b" material="opacity: 0.7; transparent: true">
+          <a-plane position="0 0.65 0.01" width="1.1" height="0.22" color="#334155" material="shader: flat">
+            <a-text value="COMING SOON" align="center" width="2.4" color="#94a3b8"></a-text>
+          </a-plane>
+          <a-text value="Academic Stress" position="0 0.35 0.01" align="center" width="3.2" color="#64748b"></a-text>
+          <a-text value="Exam pressure coping\nmechanisms and healthy\nalternatives." position="0 -0.1 0.01" align="center" width="2.1" color="#64748b" wrap-count="22"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Card 4: Social Situation (COMING SOON) -->
+      <a-entity position="2.2 1.6 -3.2" rotation="0 -18 0">
+        <a-plane width="1.2" height="1.8" color="#1e293b" material="opacity: 0.7; transparent: true">
+          <a-plane position="0 0.65 0.01" width="1.1" height="0.22" color="#334155" material="shader: flat">
+            <a-text value="COMING SOON" align="center" width="2.4" color="#94a3b8"></a-text>
+          </a-plane>
+          <a-text value="Social Setting" position="0 0.35 0.01" align="center" width="3.2" color="#64748b"></a-text>
+          <a-text value="Bystander intervention\nand protecting peers\nat large events." position="0 -0.1 0.01" align="center" width="2.1" color="#64748b" wrap-count="22"></a-text>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 4: PEER PRESSURE CAMPUS 3D COURTYARD
+         ========================================================================== -->
+    <a-entity id="envPeerPressureCampus" visible="false">
+      <!-- Ground Lawn & Walkway -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="40" height="40" color="#142115" material="roughness: 0.9"></a-plane>
+      <!-- Stone Pathway -->
+      <a-plane position="0 0.01 0" rotation="-90 0 0" width="3.5" height="40" color="#334155" material="roughness: 0.7"></a-plane>
+      <a-plane position="0 0.01 0" rotation="-90 90 0" width="3.5" height="40" color="#334155" material="roughness: 0.7"></a-plane>
+
+      <!-- Campus Architecture (Low-Poly Brick/Stone Academic Buildings) -->
+      <!-- North Hall -->
+      <a-box position="0 6 -18" width="28" height="12" depth="6" color="#1e293b" material="roughness: 0.8">
+        <!-- Roof edge -->
+        <a-box position="0 6.2 0" width="28.4" height="0.4" depth="6.4" color="#0f172a"></a-box>
+        <!-- Windows row -->
+        <a-plane position="-8 2 3.01" width="1.8" height="2.4" color="#38bdf8" material="shader: flat; opacity: 0.5"></a-plane>
+        <a-plane position="-3 2 3.01" width="1.8" height="2.4" color="#38bdf8" material="shader: flat; opacity: 0.5"></a-plane>
+        <a-plane position="3 2 3.01" width="1.8" height="2.4" color="#38bdf8" material="shader: flat; opacity: 0.5"></a-plane>
+        <a-plane position="8 2 3.01" width="1.8" height="2.4" color="#38bdf8" material="shader: flat; opacity: 0.5"></a-plane>
+        <a-text value="UNIVERSITY SCIENCE & STUDENT COMMONS" position="0 4.5 3.02" align="center" width="12" color="#94a3b8"></a-text>
+      </a-box>
+
+      <!-- East & West Wings -->
+      <a-box position="-16 5 0" width="6" height="10" depth="24" color="#1e293b"></a-box>
+      <a-box position="16 5 0" width="6" height="10" depth="24" color="#1e293b"></a-box>
+
+      <!-- Courtyard Trees (Low-Poly Trunks & Foliage) -->
+      <a-entity position="-6 0 -5">
+        <a-cylinder radius="0.25" height="3" color="#451a03" position="0 1.5 0"></a-cylinder>
+        <a-cone radius-bottom="1.8" radius-top="0" height="3.5" color="#15803d" position="0 3.8 0"></a-cone>
+      </a-entity>
+      <a-entity position="6 0 -5">
+        <a-cylinder radius="0.25" height="3" color="#451a03" position="0 1.5 0"></a-cylinder>
+        <a-cone radius-bottom="1.8" radius-top="0" height="3.5" color="#15803d" position="0 3.8 0"></a-cone>
+      </a-entity>
+      <a-entity position="-7 0 5">
+        <a-cylinder radius="0.25" height="3" color="#451a03" position="0 1.5 0"></a-cylinder>
+        <a-cone radius-bottom="1.8" radius-top="0" height="3.5" color="#166534" position="0 3.8 0"></a-cone>
+      </a-entity>
+      <a-entity position="7 0 5">
+        <a-cylinder radius="0.25" height="3" color="#451a03" position="0 1.5 0"></a-cylinder>
+        <a-cone radius-bottom="1.8" radius-top="0" height="3.5" color="#166534" position="0 3.8 0"></a-cone>
+      </a-entity>
+
+      <!-- Courtyard Benches & Streetlamps -->
+      <a-entity position="2.2 0 -2.5" rotation="0 -30 0">
+        <!-- Bench -->
+        <a-box position="0 0.45 0" width="1.8" height="0.1" depth="0.5" color="#78350f"></a-box>
+        <a-box position="0 0.8 -0.2" width="1.8" height="0.6" depth="0.08" color="#78350f"></a-box>
+        <a-cylinder position="-0.7 0.22 0" radius="0.05" height="0.45" color="#1e293b"></a-cylinder>
+        <a-cylinder position="0.7 0.22 0" radius="0.05" height="0.45" color="#1e293b"></a-cylinder>
+      </a-entity>
+
+      <!-- Campus Lamppost with point light -->
+      <a-entity position="-2 0 -2">
+        <a-cylinder radius="0.08" height="3.6" color="#334155" position="0 1.8 0"></a-cylinder>
+        <a-sphere radius="0.25" color="#fef08a" position="0 3.6 0" material="shader: flat"></a-sphere>
+        <a-entity light="type: point; color: #fef08a; intensity: 0.9; distance: 8" position="0 3.4 0"></a-entity>
+      </a-entity>
+
+      <!-- 3D NPC: "Alex" (Low-Poly Character with speech indicator) -->
+      <a-entity id="npcAlex" position="0 0 -2.8" rotation="0 0 0">
+        <!-- Body / Jacket -->
+        <a-box position="0 1.05 0" width="0.65" height="0.8" depth="0.38" color="#0284c7"></a-box>
+        <!-- Head -->
+        <a-sphere position="0 1.62 0" radius="0.2" color="#fbcfe8"></a-sphere>
+        <!-- Hair/Cap -->
+        <a-sphere position="0 1.72 0" radius="0.21" color="#1e293b"></a-sphere>
+        <!-- Legs / Jeans -->
+        <a-box position="-0.16 0.4 0" width="0.2" height="0.8" depth="0.25" color="#1e3a8a"></a-box>
+        <a-box position="0.16 0.4 0" width="0.2" height="0.8" depth="0.25" color="#1e3a8a"></a-box>
+        <!-- Shoes -->
+        <a-box position="-0.16 0.05 0.05" width="0.22" height="0.1" depth="0.32" color="#0f172a"></a-box>
+        <a-box position="0.16 0.05 0.05" width="0.22" height="0.1" depth="0.32" color="#0f172a"></a-box>
+        <!-- Floating NPC Name Indicator -->
+        <a-entity position="0 2.05 0">
+          <a-plane width="1.2" height="0.28" color="#0f172a" material="opacity: 0.85; transparent: true">
+            <a-text value="Alex (Peer)" align="center" width="2.8" color="#38bdf8"></a-text>
+          </a-plane>
+        </a-entity>
+
+        <!-- Fictional Substance Prop (Represented as a small stylized neutral canister) -->
+        <a-cylinder position="0.4 1.1 0.2" radius="0.04" height="0.12" color="#cbd5e1" material="roughness: 0.2"></a-cylinder>
+      </a-entity>
+
+      <!-- 3D In-VR Scenario Dialogue Board -->
+      <a-entity id="peerPressure3DBoard" position="0 1.9 -1.6" rotation="0 0 0">
+        <a-plane width="2.8" height="2.0" color="#0f172a" material="opacity: 0.94; transparent: true; roughness: 0.2">
+          <a-text value="SCENARIO: PEER PRESSURE" position="0 0.8 0.02" align="center" width="3.6" color="#38bdf8" font="roboto"></a-text>
+          <a-text id="npcDialogueText3D"
+            value="Alex: 'Hey! Everyone is taking Substance X tonight before the campus party. You should take some with us!'"
+            position="0 0.4 0.02" align="center" width="2.4" color="#f8fafc" wrap-count="30">
+          </a-text>
+
+          <!-- 4 Interactive Choices in VR 3D Space -->
+          <a-entity id="btn3DRefuse" class="clickable interactive-btn" position="-0.7 -0.05 0.03"
+            geometry="primitive: plane; width: 1.25; height: 0.3"
+            material="color: #10b981; shader: flat"
+            text="value: REFUSE; align: center; width: 2.8; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DWalkAway" class="clickable interactive-btn" position="0.7 -0.05 0.03"
+            geometry="primitive: plane; width: 1.25; height: 0.3"
+            material="color: #0284c7; shader: flat"
+            text="value: WALK AWAY; align: center; width: 2.8; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DAskHelp" class="clickable interactive-btn" position="-0.7 -0.45 0.03"
+            geometry="primitive: plane; width: 1.25; height: 0.3"
+            material="color: #8b5cf6; shader: flat"
+            text="value: ASK FOR HELP; align: center; width: 2.8; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DEnterSim" class="clickable interactive-btn" position="0.7 -0.45 0.03"
+            geometry="primitive: plane; width: 1.25; height: 0.3"
+            material="color: #f59e0b; shader: flat"
+            text="value: ENTER SIMULATION; align: center; width: 2.8; color: #000000">
+          </a-entity>
+
+          <a-text value="Select an option above using controller ray or click" position="0 -0.8 0.02" align="center" width="2.0" color="#64748b"></a-text>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 5 & 6: SIMULATED IMPAIRMENT & COGNITIVE CHALLENGE
+         ========================================================================== -->
+    <a-entity id="envCognitiveChallenge" visible="false">
+      <!-- Challenge Arena Pedestal -->
+      <a-cylinder position="0 -0.05 0" radius="8" height="0.1" color="#0b0f19"></a-cylinder>
+      <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="3.5" radius-outer="3.65" color="#f59e0b" material="shader: flat; opacity: 0.6"></a-ring>
+
+      <!-- 3D Header Board -->
+      <a-entity position="0 2.8 -3.2">
+        <a-text value="COGNITIVE REACTION CHALLENGE" align="center" width="5.0" color="#f59e0b" font="roboto"></a-text>
+        <a-text id="cogPhaseSubtitle" value="Phase 1: Normal Baseline Reaction" align="center" position="0 -0.32 0" width="3.2" color="#cbd5e1"></a-text>
+        <a-text id="cogInstruction" value="Select the target matching the prompt as fast as possible" align="center" position="0 -0.6 0" width="2.6" color="#94a3b8"></a-text>
+      </a-entity>
+
+      <!-- Challenge Target Container (Dynamic 3D Interactive Targets) -->
+      <a-entity id="cognitiveTargetContainer" position="0 1.5 -2.8">
+        <!-- Target 1 -->
+        <a-entity id="targetObj1" class="clickable cognitive-item" position="-1.5 0 0">
+          <a-sphere radius="0.32" color="#0284c7" material="roughness: 0.3">
+            <a-text id="targetText1" value="BLUE" align="center" position="0 0 0.34" width="2.5" color="#ffffff"></a-text>
+          </a-sphere>
+        </a-entity>
+
+        <!-- Target 2 -->
+        <a-entity id="targetObj2" class="clickable cognitive-item" position="-0.5 0 0">
+          <a-box width="0.55" height="0.55" depth="0.55" color="#10b981" material="roughness: 0.3">
+            <a-text id="targetText2" value="GREEN" align="center" position="0 0 0.29" width="2.5" color="#ffffff"></a-text>
+          </a-box>
+        </a-entity>
+
+        <!-- Target 3 -->
+        <a-entity id="targetObj3" class="clickable cognitive-item" position="0.5 0 0">
+          <a-cylinder radius="0.28" height="0.55" color="#f59e0b" material="roughness: 0.3">
+            <a-text id="targetText3" value="AMBER" align="center" position="0 0 0.3" width="2.5" color="#000000"></a-text>
+          </a-cylinder>
+        </a-entity>
+
+        <!-- Target 4 -->
+        <a-entity id="targetObj4" class="clickable cognitive-item" position="1.5 0 0">
+          <a-dodecahedron radius="0.32" color="#8b5cf6" material="roughness: 0.3">
+            <a-text id="targetText4" value="PURPLE" align="center" position="0 0 0.34" width="2.5" color="#ffffff"></a-text>
+          </a-dodecahedron>
+        </a-entity>
+      </a-entity>
+
+      <!-- Reaction Time & Score Dashboard in 3D -->
+      <a-entity id="cogDashboard3D" position="0 0.65 -2.5">
+        <a-plane width="2.6" height="0.5" color="#0f172a" material="opacity: 0.9; transparent: true">
+          <a-text id="cogScoreDisplay" value="Reaction Time: -- ms | Accuracy: 0/0" align="center" width="2.8" color="#38bdf8"></a-text>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 7: DECISION-MAKING SCENARIO (GETTING HOME SAFELY)
+         ========================================================================== -->
+    <a-entity id="envDecisionMaking" visible="false">
+      <!-- Fictional Late Night Street / Campus Edge -->
+      <a-plane position="0 0 0" rotation="-90 0 0" width="30" height="30" color="#0a0e17"></a-plane>
+      <!-- Road Markings -->
+      <a-plane position="0 0.01 0" rotation="-90 0 0" width="6" height="30" color="#1e293b"></a-plane>
+      <a-plane position="0 0.02 0" rotation="-90 0 0" width="0.15" height="30" color="#e2e8f0" material="opacity: 0.7"></a-plane>
+
+      <!-- Street Signs & Low-Poly Parked Car -->
+      <a-entity position="3 0 -5">
+        <a-box position="0 0.6 0" width="2.2" height="0.8" depth="4.2" color="#334155"></a-box>
+        <a-box position="0 1.2 -0.3" width="1.8" height="0.6" depth="2.2" color="#1e293b"></a-box>
+        <!-- Tail lights -->
+        <a-sphere position="-0.8 0.6 2.1" radius="0.1" color="#ef4444" material="shader: flat"></a-sphere>
+        <a-sphere position="0.8 0.6 2.1" radius="0.1" color="#ef4444" material="shader: flat"></a-sphere>
+      </a-entity>
+
+      <!-- Decision 3D Panel -->
+      <a-entity id="decision3DBoard" position="0 1.9 -2.6">
+        <a-plane width="3.2" height="2.2" color="#0f172a" material="opacity: 0.94; transparent: true; roughness: 0.2">
+          <a-text value="DECISION: GETTING HOME SAFELY" position="0 0.85 0.02" align="center" width="4.0" color="#f59e0b" font="roboto"></a-text>
+          <a-text
+            value="It is late at night. You feel the simulated disorientation and delayed reactions from Substance X. You must get back to your dorm safely. What do you do?"
+            position="0 0.45 0.02" align="center" width="2.8" color="#f8fafc" wrap-count="34">
+          </a-text>
+
+          <!-- Choices -->
+          <a-entity id="btn3DRisky" class="clickable interactive-btn" position="0 0.05 0.03"
+            geometry="primitive: plane; width: 2.7; height: 0.35"
+            material="color: #ef4444; shader: flat"
+            text="value: 1. MAKE A RISKY CHOICE (Walk alone / Drive); align: center; width: 2.7; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DAskHelpRide" class="clickable interactive-btn" position="0 -0.38 0.03"
+            geometry="primitive: plane; width: 2.7; height: 0.35"
+            material="color: #0284c7; shader: flat"
+            text="value: 2. ASK FOR HELP (Call designated driver / friend); align: center; width: 2.7; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DSafeAlt" class="clickable interactive-btn" position="0 -0.81 0.03"
+            geometry="primitive: plane; width: 2.7; height: 0.35"
+            material="color: #10b981; shader: flat"
+            text="value: 3. CHOOSE SAFER ALTERNATIVE (Stay at campus safe hub); align: center; width: 2.7; color: #ffffff">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 8: CONSEQUENCE 3D TIMELINE ENVIRONMENT
+         ========================================================================== -->
+    <a-entity id="envConsequence" visible="false">
+      <!-- Dark reflective corridor floor -->
+      <a-plane position="0 0 -6" rotation="-90 0 0" width="8" height="24" color="#030712" material="roughness: 0.2; metalness: 0.3"></a-plane>
+
+      <!-- Pathway border lights -->
+      <a-cylinder position="-3.5 0.1 -2" radius="0.05" height="18" rotation="90 0 0" color="#ef4444" material="shader: flat; opacity: 0.8"></a-cylinder>
+      <a-cylinder position="3.5 0.1 -2" radius="0.05" height="18" rotation="90 0 0" color="#ef4444" material="shader: flat; opacity: 0.8"></a-cylinder>
+
+      <!-- Consequence Milestone 1: Immediate Effects -->
+      <a-entity position="-2 1.6 -1.8" rotation="0 25 0">
+        <a-plane width="1.6" height="1.4" color="#1e1b4b" material="opacity: 0.95; transparent: true">
+          <a-text value="1. IMMEDIATE" position="0 0.5 0.01" align="center" width="2.8" color="#818cf8"></a-text>
+          <a-text value="Reduced coordination\nSlowed reflexes\nImpaired sensory processing\nDistorted depth perception" position="0 -0.1 0.01" align="center" width="2.1" color="#cbd5e1" wrap-count="24"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Consequence Milestone 2: Impaired Judgement -->
+      <a-entity position="2 1.6 -3.6" rotation="0 -25 0">
+        <a-plane width="1.6" height="1.4" color="#2e1065" material="opacity: 0.95; transparent: true">
+          <a-text value="2. JUDGEMENT" position="0 0.5 0.01" align="center" width="2.8" color="#c084fc"></a-text>
+          <a-text value="False sense of confidence\nInability to evaluate danger\nDiminished inhibitions\nImpulsive actions" position="0 -0.1 0.01" align="center" width="2.1" color="#cbd5e1" wrap-count="24"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Consequence Milestone 3: Risky Decisions -->
+      <a-entity position="-2 1.6 -5.4" rotation="0 25 0">
+        <a-plane width="1.6" height="1.4" color="#450a0a" material="opacity: 0.95; transparent: true">
+          <a-text value="3. RISKY CHOICES" position="0 0.5 0.01" align="center" width="2.8" color="#f87171"></a-text>
+          <a-text value="Operating vehicles impaired\nWalking alone vulnerable\nIgnoring warning signs\nEscalating conflict" position="0 -0.1 0.01" align="center" width="2.1" color="#cbd5e1" wrap-count="24"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Consequence Milestone 4: Possible Harm -->
+      <a-entity position="2 1.6 -7.2" rotation="0 -25 0">
+        <a-plane width="1.6" height="1.4" color="#7f1d1d" material="opacity: 0.95; transparent: true">
+          <a-text value="4. POSSIBLE HARM" position="0 0.5 0.01" align="center" width="2.8" color="#fca5a5"></a-text>
+          <a-text value="Accidental injuries & falls\nMedical emergencies\nUnplanned harm to peers\nEmergency room visits" position="0 -0.1 0.01" align="center" width="2.1" color="#cbd5e1" wrap-count="24"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Consequence Central Progression Panel -->
+      <a-entity id="consequenceCentralBoard" position="0 1.9 -4.2">
+        <a-plane width="3.2" height="2.2" color="#0f172a" material="opacity: 0.95; transparent: true">
+          <a-text value="UNDERSTANDING THE CHAIN OF CONSEQUENCE" position="0 0.85 0.02" align="center" width="3.6" color="#ef4444" font="roboto"></a-text>
+          <a-text
+            value="Impairment -> Decision -> Risk -> Consequence\n\nSubstance use impairs the brain's risk-evaluating prefrontal cortex. What begins as a casual choice rapidly compounds into severe academic, social, physical, and legal ramifications."
+            position="0 0.32 0.02" align="center" width="2.8" color="#e2e8f0" wrap-count="34">
+          </a-text>
+          <a-text value="Possible consequences include health impacts, legal records, and academic suspension." position="0 -0.32 0.02" align="center" width="2.4" color="#fca5a5"></a-text>
+
+          <a-entity id="btn3DProceedReality" class="clickable interactive-btn" position="0 -0.72 0.03"
+            geometry="primitive: plane; width: 2.0; height: 0.38"
+            material="color: #0284c7; shader: flat"
+            text="value: CONTINUE TO REALITY CHECK; align: center; width: 3.0; color: #ffffff">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 9: REALITY CHECK (GROUNDING & REFUSAL REINFORCEMENT)
+         ========================================================================== -->
+    <a-entity id="envRealityCheck" visible="false">
+      <!-- Serene, bright calm room with warm lighting -->
+      <a-cylinder position="0 -0.05 0" radius="10" height="0.1" color="#0f172a"></a-cylinder>
+      <a-ring position="0 0.01 0" rotation="-90 0 0" radius-inner="5" radius-outer="5.2" color="#10b981" material="shader: flat; opacity: 0.7"></a-ring>
+
+      <a-entity id="realityCheck3DBoard" position="0 1.9 -3.0">
+        <a-plane width="3.6" height="2.4" color="#022c22" material="opacity: 0.94; transparent: true; roughness: 0.3">
+          <a-text value="WHAT YOU EXPERIENCED WAS A SIMULATION" position="0 0.85 0.02" align="center" width="4.4" color="#34d399" font="roboto"></a-text>
+          
+          <a-text
+            value="No real drug was used. The experience demonstrated how simulated impairment disrupts perception and dramatically escalates risky outcomes.\n\nYou always have the right to say no, protect your future, and look out for your friends."
+            position="0 0.32 0.02" align="center" width="3.0" color="#f0fdf4" wrap-count="36">
+          </a-text>
+
+          <a-text
+            value="Remember the CLEAR Model: Calm posture, Look directly, Explain 'No thanks', Alternative activity, Remove yourself."
+            position="0 -0.28 0.02" align="center" width="2.8" color="#a7f3d0" wrap-count="34">
+          </a-text>
+
+          <a-entity id="btn3DProceedQuiz" class="clickable interactive-btn" position="0 -0.75 0.03"
+            geometry="primitive: plane; width: 2.2; height: 0.38"
+            material="color: #059669; shader: flat"
+            text="value: TEST YOUR KNOWLEDGE (QUIZ); align: center; width: 3.0; color: #ffffff">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 10 & 11: 5-QUESTION AWARENESS QUIZ & SCORE
+         ========================================================================== -->
+    <a-entity id="envQuiz" visible="false">
+      <!-- Quiz Environment Pedestal -->
+      <a-cylinder position="0 -0.05 0" radius="9" height="0.1" color="#0a0f1d"></a-cylinder>
+
+      <a-entity id="quiz3DBoard" position="0 1.8 -3.0">
+        <a-plane width="3.6" height="2.5" color="#0f172a" material="opacity: 0.96; transparent: true">
+          <a-text id="quizHeader3D" value="AWARENESS QUIZ: QUESTION 1 OF 5" position="0 0.95 0.02" align="center" width="4.2" color="#38bdf8" font="roboto"></a-text>
+          
+          <a-text id="quizQuestion3D"
+            value="How does cognitive impairment from unknown substances directly affect decision-making?"
+            position="0 0.55 0.02" align="center" width="3.1" color="#ffffff" wrap-count="34">
+          </a-text>
+
+          <!-- 3 Interactive Answer Choices in VR -->
+          <a-entity id="quizOpt3D_A" class="clickable interactive-btn" position="0 0.08 0.03"
+            geometry="primitive: plane; width: 3.2; height: 0.32"
+            material="color: #1e293b; shader: flat"
+            text="value: A) It sharpens focus and accelerates response time; align: left; xOffset: 0.2; width: 2.6; color: #e2e8f0">
+          </a-entity>
+
+          <a-entity id="quizOpt3D_B" class="clickable interactive-btn" position="0 -0.32 0.03"
+            geometry="primitive: plane; width: 3.2; height: 0.32"
+            material="color: #1e293b; shader: flat"
+            text="value: B) It delays reaction latency and distorts danger appraisal; align: left; xOffset: 0.2; width: 2.6; color: #e2e8f0">
+          </a-entity>
+
+          <a-entity id="quizOpt3D_C" class="clickable interactive-btn" position="0 -0.72 0.03"
+            geometry="primitive: plane; width: 3.2; height: 0.32"
+            material="color: #1e293b; shader: flat"
+            text="value: C) It has no measurable effect on perception; align: left; xOffset: 0.2; width: 2.6; color: #e2e8f0">
+          </a-entity>
+
+          <!-- Feedback Banner -->
+          <a-text id="quizFeedback3D" value="" position="0 -1.02 0.02" align="center" width="2.8" color="#10b981"></a-text>
+        </a-plane>
+      </a-entity>
+
+      <!-- Score Board (Swapped upon quiz completion) -->
+      <a-entity id="quizScore3DBoard" position="0 1.8 -3.0" visible="false">
+        <a-plane width="3.6" height="2.5" color="#0f172a" material="opacity: 0.96; transparent: true">
+          <a-text value="AWARENESS SCORE" position="0 0.9 0.02" align="center" width="4.8" color="#38bdf8" font="roboto"></a-text>
+          
+          <a-text id="finalScorePercent3D" value="80%" position="0 0.45 0.02" align="center" width="8.0" color="#10b981" font="roboto"></a-text>
+          <a-text id="finalScoreSummary3D" value="4 of 5 Questions Correct" position="0 0.12 0.02" align="center" width="3.2" color="#cbd5e1"></a-text>
+
+          <a-text
+            value="This score is educational only and is not a medical or psychological measurement.\nUnderstanding the chain of impairment empowers you to navigate peer pressure safely."
+            position="0 -0.32 0.02" align="center" width="2.9" color="#94a3b8" wrap-count="36">
+          </a-text>
+
+          <a-entity id="btn3DProceedFinal" class="clickable interactive-btn" position="0 -0.8 0.03"
+            geometry="primitive: plane; width: 2.2; height: 0.38"
+            material="color: #0284c7; shader: flat"
+            text="value: VIEW FINAL SUMMARY; align: center; width: 3.0; color: #ffffff">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+    <!-- ==========================================================================
+         SCENE 12: FINAL SCREEN & REINFORCED MESSAGE
+         ========================================================================== -->
+    <a-entity id="envFinalScreen" visible="false">
+      <a-cylinder position="0 -0.05 0" radius="10" height="0.1" color="#07090e"></a-cylinder>
+
+      <a-entity id="final3DBoard" position="0 1.8 -3.0">
+        <a-plane width="3.8" height="2.5" color="#0b1329" material="opacity: 0.96; transparent: true">
+          <a-text value="THE CHOICE MATTERS" position="0 0.95 0.02" align="center" width="5.0" color="#38bdf8" font="roboto"></a-text>
+          <a-text value="Know the risks. Protect yourself. Look out for others." position="0 0.65 0.02" align="center" width="3.5" color="#f8fafc"></a-text>
+
+          <a-text
+            value="'You don't need to experience the substance to understand the consequences.'\n\nPeer pressure is momentary, but the impacts of impaired choices can last a lifetime. Equip yourself with knowledge, practice refusal, and never hesitate to ask for help."
+            position="0 0.1 0.02" align="center" width="3.1" color="#cbd5e1" wrap-count="38">
+          </a-text>
+
+          <!-- 3 Final Action Buttons in VR -->
+          <a-entity id="btn3DExperienceAgain" class="clickable interactive-btn" position="-1.1 -0.75 0.03"
+            geometry="primitive: plane; width: 1.2; height: 0.36"
+            material="color: #0284c7; shader: flat"
+            text="value: EXPERIENCE AGAIN; align: center; width: 2.4; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DSafetyInfoFinal" class="clickable interactive-btn" position="0.1 -0.75 0.03"
+            geometry="primitive: plane; width: 1.1; height: 0.36"
+            material="color: #10b981; shader: flat"
+            text="value: SAFETY INFO; align: center; width: 2.4; color: #ffffff">
+          </a-entity>
+
+          <a-entity id="btn3DExitFinal" class="clickable interactive-btn" position="1.2 -0.75 0.03"
+            geometry="primitive: plane; width: 0.9; height: 0.36"
+            material="color: #ef4444; shader: flat"
+            text="value: EXIT; align: center; width: 2.4; color: #ffffff">
+          </a-entity>
+        </a-plane>
+      </a-entity>
+    </a-entity>
+
+  </a-scene>
+
+  <!-- ==========================================================================
+       JAVASCRIPT ARCHITECTURE & GAME LOGIC
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       1. GAME STATE & DATA DEFINITIONS
+       ========================================================================== */
+    const GAME_STATES = {
+      WELCOME: 'WELCOME',
+      SAFETY_DISCLAIMER: 'SAFETY_DISCLAIMER',
+      SCENARIO_SELECTION: 'SCENARIO_SELECTION',
+      PEER_PRESSURE: 'PEER_PRESSURE',
+      SIMULATION: 'SIMULATION',
+      COGNITIVE_CHALLENGE: 'COGNITIVE_CHALLENGE',
+      DECISION_MAKING: 'DECISION_MAKING',
+      CONSEQUENCE: 'CONSEQUENCE',
+      REALITY_CHECK: 'REALITY_CHECK',
+      QUIZ: 'QUIZ',
+      AWARENESS_SCORE: 'AWARENESS_SCORE',
+      FINAL: 'FINAL'
+    };
+
+    const GameState = {
+      currentScene: GAME_STATES.WELCOME,
+      isVR: false,
+      audioEnabled: true,
+      captionsEnabled: true,
+      comfortMode: true,
+      reducedEffects: false,
+      isImpaired: false,
+      cognitivePhase: 'baseline', // 'baseline' or 'impaired'
+      cognitiveTrials: [],
+      cognitiveCurrentTarget: null,
+      cognitiveStartTime: 0,
+      quizCurrentIndex: 0,
+      quizAnswers: [],
+      score: 0
+    };
+
+    // Quiz Questions Data (5 Questions)
+    const QUIZ_QUESTIONS = [
+      {
+        question: "How does cognitive impairment from unknown substances directly affect decision-making?",
+        options: [
+          "It sharpens focus and accelerates response time",
+          "It delays reaction latency and distorts danger appraisal",
+          "It has no measurable effect on perception"
+        ],
+        correctIndex: 1,
+        explanation: "Correct! Impairment degrades the brain's prefrontal cortex, slowing reaction latency and creating a false sense of safety."
+      },
+      {
+        question: "What is the primary objective of the 'CLEAR' refusal model when facing peer pressure?",
+        options: [
+          "Argue aggressively to prove superiority",
+          "De-escalate calmly, refuse firmly, and remove yourself",
+          "Accept a smaller dose to avoid conflict"
+        ],
+        correctIndex: 1,
+        explanation: "Correct! The CLEAR model focuses on remaining Calm, Looking directly, Explaining a simple 'No', suggesting an Alternative, and Removing yourself."
+      },
+      {
+        question: "Why is 'Substance X' represented as fictional rather than identifying a specific real substance?",
+        options: [
+          "To focus on the fundamental progression (Impairment -> Decision -> Risk -> Consequence) without glamorizing real substances",
+          "Because real substances have no predictable risks",
+          "Fictional substances are cheaper to simulate"
+        ],
+        correctIndex: 0,
+        explanation: "Correct! Educational safety protocols avoid real-world dosing instructions or glamorization, prioritizing universal risk awareness."
+      },
+      {
+        question: "When faced with an impaired peer at a gathering, what is the safest immediate action?",
+        options: [
+          "Leave them alone to sleep in an isolated room",
+          "Encourage them to walk or drive home independently",
+          "Stay with them, prevent risky choices, and call emergency or trusted assistance"
+        ],
+        correctIndex: 2,
+        explanation: "Correct! Never leave an impaired individual unattended. Ensure airway safety and seek immediate medical or adult assistance."
+      },
+      {
+        question: "Which of the following is considered a long-term consequence of repeated risky substance decisions?",
+        options: [
+          "Compounded legal, academic, and physiological dependence risks",
+          "Immediate and permanent immunity",
+          "Guaranteed complete absence of emotional stress"
+        ],
+        correctIndex: 0,
+        explanation: "Correct! Consequences compound over time into academic disqualification, criminal records, and clinical health dependencies."
+      }
+    ];
+
+    /* ==========================================================================
+       2. PROCEDURAL WEB AUDIO ENGINE (ZERO EXTERNAL ASSET DEPENDENCY)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.isStarted = false;
+        this.masterGain = null;
+        this.lowpassFilter = null;
+        this.ambientOsc1 = null;
+        this.ambientOsc2 = null;
+        this.droneGain = null;
+      }
+
+      init() {
+        if (this.isStarted) return;
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+          
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.setValueAtTime(GameState.audioEnabled ? 0.35 : 0, this.ctx.currentTime);
+          this.masterGain.connect(this.ctx.destination);
+
+          // Dynamic Lowpass Filter (Used to simulate muffled audio during impairment)
+          this.lowpassFilter = this.ctx.createBiquadFilter();
+          this.lowpassFilter.type = 'lowpass';
+          this.lowpassFilter.frequency.setValueAtTime(18000, this.ctx.currentTime);
+          this.lowpassFilter.connect(this.masterGain);
+
+          // Generative Ambient Drone
+          this.droneGain = this.ctx.createGain();
+          this.droneGain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          this.droneGain.connect(this.lowpassFilter);
+
+          this.ambientOsc1 = this.ctx.createOscillator();
+          this.ambientOsc1.type = 'sine';
+          this.ambientOsc1.frequency.setValueAtTime(110, this.ctx.currentTime); // A2
+          this.ambientOsc1.connect(this.droneGain);
+          this.ambientOsc1.start();
+
+          this.ambientOsc2 = this.ctx.createOscillator();
+          this.ambientOsc2.type = 'triangle';
+          this.ambientOsc2.frequency.setValueAtTime(164.81, this.ctx.currentTime); // E3
+          this.ambientOsc2.connect(this.droneGain);
+          this.ambientOsc2.start();
+
+          this.isStarted = true;
+        } catch (e) {
+          console.warn("Web Audio API not supported or blocked: ", e);
+        }
+      }
+
+      resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setAudioEnabled(enabled) {
+        if (!this.masterGain || !this.ctx) return;
+        this.masterGain.gain.setTargetAtTime(enabled ? 0.35 : 0, this.ctx.currentTime, 0.05);
+      }
+
+      setImpairmentFilter(isImpaired) {
+        if (!this.lowpassFilter || !this.ctx) return;
+        // Drop cutoff to 500Hz when impaired, creating muffled, disconnected auditory perception
+        const targetFreq = isImpaired ? (GameState.reducedEffects ? 1200 : 520) : 18000;
+        this.lowpassFilter.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 1.2);
+      }
+
+      playHover() {
+        if (!GameState.audioEnabled || !this.ctx) return;
+        this.resume();
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1100, this.ctx.currentTime);
+        g.gain.setValueAtTime(0.04, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.04);
+      }
+
+      playSelect() {
+        if (!GameState.audioEnabled || !this.ctx) return;
+        this.resume();
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+        osc.frequency.exponentialRampToValueAtTime(659.25, this.ctx.currentTime + 0.12); // E5
+        g.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.18);
+      }
+
+      playChimeSuccess() {
+        if (!GameState.audioEnabled || !this.ctx) return;
+        this.resume();
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.06);
+          g.gain.setValueAtTime(0.08, this.ctx.currentTime + i * 0.06);
+          g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.06 + 0.3);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          osc.start(this.ctx.currentTime + i * 0.06);
+          osc.stop(this.ctx.currentTime + i * 0.06 + 0.35);
+        });
+      }
+
+      playWarningTone() {
+        if (!GameState.audioEnabled || !this.ctx) return;
+        this.resume();
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+        osc.frequency.setValueAtTime(220, this.ctx.currentTime + 0.12);
+        g.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.28);
+        osc.connect(g);
+        g.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.28);
+      }
+    }
+
+    const Audio = new SoundEngine();
+
+    /* ==========================================================================
+       3. CLOSED CAPTIONS & SUBTITLE SYSTEM
+       ========================================================================== */
+    function showCaption(speaker, text, durationMs = 6000) {
+      const captionsContainer = document.getElementById('captionsContainer');
+      const captionSpeaker = document.getElementById('captionSpeaker');
+      const captionText = document.getElementById('captionText');
+      const vrSubtitleRig = document.getElementById('vrSubtitleRig');
+      const vrSubtitleText = document.getElementById('vrSubtitleText');
+
+      if (!GameState.captionsEnabled) {
+        captionsContainer.classList.add('hidden');
+        if (vrSubtitleRig) vrSubtitleRig.setAttribute('visible', false);
+        return;
+      }
+
+      captionsContainer.classList.remove('hidden');
+      captionSpeaker.textContent = speaker.toUpperCase();
+      captionText.textContent = text;
+
+      // Update in-VR subtitle text plane
+      if (vrSubtitleRig && vrSubtitleText) {
+        vrSubtitleRig.setAttribute('visible', true);
+        vrSubtitleText.setAttribute('value', `${speaker}: ${text}`);
+      }
+
+      if (window._captionTimer) clearTimeout(window._captionTimer);
+      if (durationMs > 0) {
+        window._captionTimer = setTimeout(() => {
+          captionsContainer.classList.add('hidden');
+          if (vrSubtitleRig) vrSubtitleRig.setAttribute('visible', false);
+        }, durationMs);
+      }
+    }
+
+    /* ==========================================================================
+       4. SIMULATED IMPAIRMENT ENGINE
+       ========================================================================== */
+    function setImpairmentActive(active) {
+      GameState.isImpaired = active;
+      const overlay = document.getElementById('impairmentScreenOverlay');
+      const vrPlane = document.getElementById('vrImpairmentPlane');
+
+      Audio.setImpairmentFilter(active);
+
+      if (active) {
+        overlay.classList.add('active');
+        if (GameState.reducedEffects) overlay.classList.add('reduced');
+        else overlay.classList.remove('reduced');
+
+        // VR Headset overlay plane
+        if (vrPlane) {
+          vrPlane.setAttribute('visible', true);
+          vrPlane.setAttribute('material', {
+            opacity: GameState.reducedEffects ? 0.15 : 0.45,
+            color: '#02132b'
+          });
+        }
+      } else {
+        overlay.classList.remove('active');
+        overlay.classList.remove('reduced');
+        if (vrPlane) {
+          vrPlane.setAttribute('visible', false);
+        }
+      }
+    }
+
+    /* ==========================================================================
+       5. SCENE & STATE CONTROLLER
+       ========================================================================== */
+    function transitionToScene(targetScene) {
+      GameState.currentScene = targetScene;
+      Audio.init();
+      Audio.playSelect();
+
+      // Update HUD Scene Label
+      document.getElementById('hudCurrentSceneLabel').textContent = targetScene.replace('_', ' ');
+
+      // Hide all 3D environment groups
+      const envs = [
+        'envWelcomePavilion', 'envScenarioSelection', 'envPeerPressureCampus',
+        'envCognitiveChallenge', 'envDecisionMaking', 'envConsequence',
+        'envRealityCheck', 'envQuiz', 'envFinalScreen'
+      ];
+      envs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.setAttribute('visible', false);
+      });
+
+      // Desktop interactive card
+      const card = document.getElementById('desktopInteractiveCard');
+      card.classList.remove('active');
+
+      // Reset camera position comfortably
+      const rig = document.getElementById('cameraRig');
+      if (rig) rig.setAttribute('position', '0 0 0');
+
+      // State Machine Router
+      switch (targetScene) {
+        case GAME_STATES.WELCOME:
+          setImpairmentActive(false);
+          document.getElementById('envWelcomePavilion').setAttribute('visible', true);
+          document.getElementById('welcomeBoard3D').setAttribute('visible', true);
+          document.getElementById('disclaimerBoard3D').setAttribute('visible', false);
+          showCaption('SYSTEM GUIDE', 'Welcome to Drug Awareness VR. Point with controller laser ray and pull trigger to begin.');
+          renderDesktopCard(
+            'WELCOME EXHIBITION',
+            'DRUG AWARENESS VR',
+            'Experience the consequences. Never the substance. Step inside to explore how choices and simulated impairment unfold.',
+            [
+              { text: 'ENTER EXPERIENCE', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.SAFETY_DISCLAIMER) },
+              { text: 'ABOUT & SAFETY', class: 'btn-choice', action: () => openInfoModal() }
+            ]
+          );
+          break;
+
+        case GAME_STATES.SAFETY_DISCLAIMER:
+          setImpairmentActive(false);
+          document.getElementById('envWelcomePavilion').setAttribute('visible', true);
+          document.getElementById('welcomeBoard3D').setAttribute('visible', false);
+          document.getElementById('disclaimerBoard3D').setAttribute('visible', true);
+          showCaption('SAFETY PROTOCOL', 'Educational simulation disclaimer. Please confirm your understanding to continue.');
+          renderDesktopCard(
+            'SAFETY DISCLAIMER',
+            'Mandatory Educational Confirmation',
+            'This is a fictional educational simulation. No real drugs or substances are involved. The effects shown are simplified representations intended for awareness and education.',
+            [
+              { text: 'I UNDERSTAND', class: 'btn-success', action: () => transitionToScene(GAME_STATES.SCENARIO_SELECTION) },
+              { text: 'EXIT', class: 'btn-danger', action: () => transitionToScene(GAME_STATES.WELCOME) }
+            ]
+          );
+          break;
+
+        case GAME_STATES.SCENARIO_SELECTION:
+          setImpairmentActive(false);
+          document.getElementById('envScenarioSelection').setAttribute('visible', true);
+          showCaption('SCENARIO SELECT', 'Select the active Peer Pressure scenario to experience the decision model.');
+          renderDesktopCard(
+            'SCENARIO SELECTION',
+            'Choose an Educational Scenario',
+            'Select "Peer Pressure" to play through the interactive campus decision tree.',
+            [
+              { text: 'LAUNCH PEER PRESSURE (PLAYABLE)', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.PEER_PRESSURE) },
+              { text: 'RETURN TO MENU', class: 'btn-choice', action: () => transitionToScene(GAME_STATES.WELCOME) }
+            ]
+          );
+          break;
+
+        case GAME_STATES.PEER_PRESSURE:
+          setImpairmentActive(false);
+          document.getElementById('envPeerPressureCampus').setAttribute('visible', true);
+          showCaption('ALEX', "Hey! Everyone is taking Substance X tonight before the party. You should take some with us!");
+          renderDesktopCard(
+            'CAMPUS COURTYARD',
+            'Someone offers you Substance X. What do you do?',
+            'Alex: "Hey! Everyone is taking Substance X tonight before the campus party. You should take some with us!"',
+            [
+              { text: 'REFUSE (Say No Clearly)', class: 'btn-success', action: () => handleRefusalChoice('REFUSE') },
+              { text: 'WALK AWAY (Remove Yourself)', class: 'btn-primary', action: () => handleRefusalChoice('WALK_AWAY') },
+              { text: 'ASK FOR HELP (Campus Support)', class: 'btn-choice', action: () => handleRefusalChoice('ASK_HELP') },
+              { text: 'ENTER SIMULATION (Observe Effects)', class: 'btn-warning', action: () => handleRefusalChoice('ENTER_SIM') }
+            ]
+          );
+          break;
+
+        case GAME_STATES.SIMULATION:
+          setImpairmentActive(true);
+          document.getElementById('envPeerPressureCampus').setAttribute('visible', true);
+          showCaption('SIMULATION ACTIVE', 'Simulated impairment initiated: Notice visual tunnel perception and muffled audio.');
+          renderDesktopCard(
+            'SIMULATED IMPAIRMENT',
+            'Perceptual Shift: Substance X Effects',
+            'Notice the simulated difficulty focusing, peripheral tunnel vision, and muffled auditory perception. These distortions directly degrade reaction speed.',
+            [
+              { text: 'PROCEED TO COGNITIVE CHALLENGE', class: 'btn-warning', action: () => transitionToScene(GAME_STATES.COGNITIVE_CHALLENGE) },
+              { text: 'COMFORT: REDUCE EFFECTS', class: 'btn-choice', action: () => toggleReducedEffectsFromHud() }
+            ]
+          );
+          break;
+
+        case GAME_STATES.COGNITIVE_CHALLENGE:
+          setImpairmentActive(true);
+          document.getElementById('envCognitiveChallenge').setAttribute('visible', true);
+          startCognitiveChallenge();
+          break;
+
+        case GAME_STATES.DECISION_MAKING:
+          setImpairmentActive(true);
+          document.getElementById('envDecisionMaking').setAttribute('visible', true);
+          showCaption('CRITICAL DECISION', 'It is late at night. You are feeling the simulated effects. How do you get home safely?');
+          renderDesktopCard(
+            'DECISION MAKING',
+            'You need to get home safely.',
+            'While under simulated impairment, judgment is compromised. Choose how to navigate getting home.',
+            [
+              { text: '1. MAKE A RISKY CHOICE (Walk alone / Drive)', class: 'btn-danger', action: () => handleConsequenceChoice('RISKY') },
+              { text: '2. ASK FOR HELP (Call safe ride / friend)', class: 'btn-primary', action: () => handleConsequenceChoice('HELP') },
+              { text: '3. CHOOSE SAFER ALTERNATIVE (Stay at safe hub)', class: 'btn-success', action: () => handleConsequenceChoice('SAFE_ALT') }
+            ]
+          );
+          break;
+
+        case GAME_STATES.CONSEQUENCE:
+          setImpairmentActive(false); // Clear impairment to allow sober reflection on consequences
+          document.getElementById('envConsequence').setAttribute('visible', true);
+          showCaption('CONSEQUENCE CORRIDOR', 'Explore how impaired judgement links directly to escalating risk and harm.');
+          renderDesktopCard(
+            'CONSEQUENCE TIMELINE',
+            'Impairment -> Decision -> Risk -> Consequence',
+            'Possible consequences include accidental physical harm, academic suspension, and legal records. Awareness breaks this chain.',
+            [
+              { text: 'CONTINUE TO REALITY CHECK', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.REALITY_CHECK) }
+            ]
+          );
+          break;
+
+        case GAME_STATES.REALITY_CHECK:
+          setImpairmentActive(false);
+          document.getElementById('envRealityCheck').setAttribute('visible', true);
+          showCaption('REALITY CHECK', 'What you experienced was a simulation. No real drug was used.');
+          renderDesktopCard(
+            'REALITY CHECK',
+            'WHAT YOU EXPERIENCED WAS A SIMULATION',
+            'No real drug was used. The simulation demonstrated how altered perception rapidly multiplies risk. You always have the power to make safer choices.',
+            [
+              { text: 'TAKE AWARENESS QUIZ', class: 'btn-success', action: () => transitionToScene(GAME_STATES.QUIZ) },
+              { text: 'REFUSAL STRATEGIES INFO', class: 'btn-choice', action: () => openInfoModal() }
+            ]
+          );
+          break;
+
+        case GAME_STATES.QUIZ:
+          setImpairmentActive(false);
+          document.getElementById('envQuiz').setAttribute('visible', true);
+          document.getElementById('quiz3DBoard').setAttribute('visible', true);
+          document.getElementById('quizScore3DBoard').setAttribute('visible', false);
+          GameState.quizCurrentIndex = 0;
+          GameState.quizAnswers = [];
+          loadQuizQuestion(0);
+          break;
+
+        case GAME_STATES.AWARENESS_SCORE:
+          setImpairmentActive(false);
+          document.getElementById('envQuiz').setAttribute('visible', true);
+          document.getElementById('quiz3DBoard').setAttribute('visible', false);
+          document.getElementById('quizScore3DBoard').setAttribute('visible', true);
+          renderScoreScreen();
+          break;
+
+        case GAME_STATES.FINAL:
+          setImpairmentActive(false);
+          document.getElementById('envFinalScreen').setAttribute('visible', true);
+          showCaption('FINAL TAKEAWAY', 'The choice matters. Know the risks. Protect yourself. Look out for others.');
+          renderDesktopCard(
+            'FINAL SUMMARY',
+            'THE CHOICE MATTERS',
+            '"You don\'t need to experience the substance to understand the consequences." Practice refusal, protect your peers, and reach out for support whenever needed.',
+            [
+              { text: 'EXPERIENCE AGAIN', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.WELCOME) },
+              { text: 'SAFETY RESOURCES', class: 'btn-success', action: () => openInfoModal() },
+              { text: 'EXIT', class: 'btn-danger', action: () => transitionToScene(GAME_STATES.WELCOME) }
+            ]
+          );
+          break;
+      }
+    }
+
+    /* ==========================================================================
+       6. DESKTOP INTERACTIVE CARD RENDERER
+       ========================================================================== */
+    function renderDesktopCard(category, title, bodyText, buttons) {
+      const card = document.getElementById('desktopInteractiveCard');
+      document.getElementById('cardCategory').textContent = category;
+      document.getElementById('cardTitle').textContent = title;
+      document.getElementById('cardBody').textContent = bodyText;
+
+      const btnContainer = document.getElementById('cardButtons');
+      btnContainer.innerHTML = '';
+
+      buttons.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = `card-choice-btn ${b.class || ''}`;
+        btn.textContent = b.text;
+        btn.onclick = () => {
+          Audio.playSelect();
+          b.action();
+        };
+        btnContainer.appendChild(btn);
+      });
+
+      card.classList.add('active');
+    }
+
+    /* ==========================================================================
+       7. SCENARIO DECISION LOGIC & BRANCHING
+       ========================================================================== */
+    function handleRefusalChoice(choice) {
+      if (choice === 'REFUSE') {
+        Audio.playChimeSuccess();
+        showCaption('REFUSAL SKILL', "You chose to refuse: 'No thanks, I'm good.' Firm refusal stops pressure before it starts.");
+        renderDesktopCard(
+          'SAFER OUTCOME: REFUSAL',
+          'You chose to Refuse firmly.',
+          "Direct refusal establishes personal boundaries. Alex backs down and respects your decision. To understand what impairment does to judgement, enter the educational simulation.",
+          [
+            { text: 'ENTER SIMULATION TO LEARN RISKS', class: 'btn-warning', action: () => transitionToScene(GAME_STATES.SIMULATION) },
+            { text: 'CONTINUE TO REALITY CHECK', class: 'btn-success', action: () => transitionToScene(GAME_STATES.REALITY_CHECK) }
+          ]
+        );
+      } else if (choice === 'WALK_AWAY') {
+        Audio.playChimeSuccess();
+        showCaption('DE-ESCALATION', 'You chose to walk away and join a different group of peers. Removing yourself prevents escalation.');
+        renderDesktopCard(
+          'SAFER OUTCOME: WALK AWAY',
+          'You removed yourself from the pressured setting.',
+          "Walking away is an active de-escalation technique. You protected your safety. To explore how the substance impairs cognitive reactions, you can enter the controlled simulation.",
+          [
+            { text: 'ENTER SIMULATION TO LEARN RISKS', class: 'btn-warning', action: () => transitionToScene(GAME_STATES.SIMULATION) },
+            { text: 'CONTINUE TO REALITY CHECK', class: 'btn-success', action: () => transitionToScene(GAME_STATES.REALITY_CHECK) }
+          ]
+        );
+      } else if (choice === 'ASK_HELP') {
+        Audio.playChimeSuccess();
+        showCaption('SUPPORT RESOURCE', 'You connected with a designated sober peer or campus RA to assist.');
+        renderDesktopCard(
+          'SAFER OUTCOME: ASK FOR HELP',
+          'You reached out to trusted support.',
+          "Reaching out to peers or university staff creates a supportive environment that protects everyone. Continue to explore the simulated impairment effects.",
+          [
+            { text: 'ENTER SIMULATION TO LEARN RISKS', class: 'btn-warning', action: () => transitionToScene(GAME_STATES.SIMULATION) },
+            { text: 'CONTINUE TO REALITY CHECK', class: 'btn-success', action: () => transitionToScene(GAME_STATES.REALITY_CHECK) }
+          ]
+        );
+      } else if (choice === 'ENTER_SIM') {
+        Audio.playWarningTone();
+        transitionToScene(GAME_STATES.SIMULATION);
+      }
+    }
+
+    function handleConsequenceChoice(choice) {
+      if (choice === 'RISKY') {
+        Audio.playWarningTone();
+        showCaption('RISKY PATHWAY', 'Attempting to drive or navigate alone while impaired exponentially increases accident hazards.');
+        renderDesktopCard(
+          'CONSEQUENCE: RISKY DECISION',
+          'Impairment -> Risky Choice -> High Hazard',
+          'Under Substance X, visual depth and delayed reflexes make operating vehicles or walking alone hazardous. This often leads to emergency intervention or severe injury.',
+          [
+            { text: 'OBSERVE CONSEQUENCE TIMELINE', class: 'btn-danger', action: () => transitionToScene(GAME_STATES.CONSEQUENCE) }
+          ]
+        );
+      } else {
+        Audio.playChimeSuccess();
+        showCaption('SAFE PATHWAY', 'Choosing trusted transport or a campus safe haven avoids preventable harm.');
+        renderDesktopCard(
+          'CONSEQUENCE: PROTECTIVE DECISION',
+          'Safer Choices Minimize Harm',
+          'By calling for assistance or staying in a monitored space, you successfully mitigated the hazards of impairment.',
+          [
+            { text: 'PROCEED TO CONSEQUENCE REVIEW', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.CONSEQUENCE) }
+          ]
+        );
+      }
+    }
+
+    /* ==========================================================================
+       8. COGNITIVE CHALLENGE SYSTEM (BASELINE VS IMPAIRED REACTION)
+       ========================================================================== */
+    const TARGETS = [
+      { id: 'targetObj1', name: 'BLUE', color: '#0284c7' },
+      { id: 'targetObj2', name: 'GREEN', color: '#10b981' },
+      { id: 'targetObj3', name: 'AMBER', color: '#f59e0b' },
+      { id: 'targetObj4', name: 'PURPLE', color: '#8b5cf6' }
+    ];
+
+    function startCognitiveChallenge() {
+      GameState.cognitivePhase = 'baseline';
+      GameState.cognitiveTrials = [];
+      runCognitiveTrial();
+    }
+
+    function runCognitiveTrial() {
+      const isImpairedRound = (GameState.cognitiveTrials.length >= 2);
+      GameState.cognitivePhase = isImpairedRound ? 'impaired' : 'baseline';
+
+      const phaseSubtitle = document.getElementById('cogPhaseSubtitle');
+      const instruction = document.getElementById('cogInstruction');
+      const scoreDisplay = document.getElementById('cogScoreDisplay');
+
+      // Random target selection
+      const target = TARGETS[Math.floor(Math.random() * TARGETS.length)];
+      GameState.cognitiveCurrentTarget = target;
+
+      if (!isImpairedRound) {
+        phaseSubtitle.setAttribute('value', 'Phase 1: Baseline Reaction (Normal)');
+        phaseSubtitle.setAttribute('color', '#38bdf8');
+        instruction.setAttribute('value', `SELECT TARGET: [ ${target.name} ]`);
+      } else {
+        phaseSubtitle.setAttribute('value', 'Phase 2: Impaired Reaction (Substance X)');
+        phaseSubtitle.setAttribute('color', '#ef4444');
+        instruction.setAttribute('value', `SELECT TARGET: [ ${target.name} ] - Note sensory delay`);
+      }
+
+      showCaption('CHALLENGE', `Identify and select target: ${target.name}`);
+      GameState.cognitiveStartTime = performance.now();
+
+      renderDesktopCard(
+        `COGNITIVE CHALLENGE (${isImpairedRound ? 'IMPAIRED STATE' : 'BASELINE'})`,
+        `TARGET PROMPT: ${target.name}`,
+        `Click on the matching target below or aim your Quest controller laser ray at the 3D shape.`,
+        TARGETS.map(t => ({
+          text: t.name,
+          class: (t.name === target.name ? 'btn-primary' : 'btn-choice'),
+          action: () => handleCognitiveTargetClick(t.id)
+        }))
+      );
+    }
+
+    function handleCognitiveTargetClick(selectedId) {
+      const elapsed = Math.round(performance.now() - GameState.cognitiveStartTime);
+      const isCorrect = (selectedId === GameState.cognitiveCurrentTarget.id);
+
+      if (isCorrect) {
+        Audio.playChimeSuccess();
+      } else {
+        Audio.playWarningTone();
+      }
+
+      GameState.cognitiveTrials.push({
+        phase: GameState.cognitivePhase,
+        latency: elapsed,
+        correct: isCorrect
+      });
+
+      const scoreDisplay = document.getElementById('cogScoreDisplay');
+      if (scoreDisplay) {
+        scoreDisplay.setAttribute('value', `Latency: ${elapsed}ms | Correct: ${isCorrect ? 'YES' : 'NO'} | Trial ${GameState.cognitiveTrials.length}/4`);
+      }
+
+      if (GameState.cognitiveTrials.length < 4) {
+        setTimeout(runCognitiveTrial, 800);
+      } else {
+        finishCognitiveChallenge();
+      }
+    }
+
+    function finishCognitiveChallenge() {
+      const baselineTrials = GameState.cognitiveTrials.filter(t => t.phase === 'baseline');
+      const impairedTrials = GameState.cognitiveTrials.filter(t => t.phase === 'impaired');
+
+      const avgBase = Math.round(baselineTrials.reduce((a, c) => a + c.latency, 0) / (baselineTrials.length || 1));
+      const avgImp = Math.round(impairedTrials.reduce((a, c) => a + c.latency, 0) / (impairedTrials.length || 1));
+
+      const phaseSubtitle = document.getElementById('cogPhaseSubtitle');
+      const instruction = document.getElementById('cogInstruction');
+      phaseSubtitle.setAttribute('value', 'Challenge Complete - Performance Comparison');
+      instruction.setAttribute('value', `Baseline: ${avgBase}ms  |  Impaired: ${avgImp}ms (+${Math.max(0, avgImp - avgBase)}ms latency)`);
+
+      showCaption('CHALLENGE SUMMARY', `Latency increased from ${avgBase}ms baseline to ${avgImp}ms under simulated impairment.`);
+
+      renderDesktopCard(
+        'SIMULATION SCORE',
+        'Cognitive Challenge Results',
+        `Baseline Reaction Time: ${avgBase} ms\nImpaired Reaction Time: ${avgImp} ms\nDemonstrated Latency Increase: +${Math.max(0, avgImp - avgBase)} ms.\n\n*Note: This simulation demonstrates how impairment delays motor response. This is not a medical or psychological assessment.*`,
+        [
+          { text: 'CONTINUE TO DECISION SCENARIO', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.DECISION_MAKING) }
+        ]
+      );
+    }
+
+    /* ==========================================================================
+       9. 5-QUESTION AWARENESS QUIZ SYSTEM
+       ========================================================================== */
+    function loadQuizQuestion(index) {
+      const q = QUIZ_QUESTIONS[index];
+      const header3D = document.getElementById('quizHeader3D');
+      const question3D = document.getElementById('quizQuestion3D');
+      const optA = document.getElementById('quizOpt3D_A');
+      const optB = document.getElementById('quizOpt3D_B');
+      const optC = document.getElementById('quizOpt3D_C');
+      const feedback3D = document.getElementById('quizFeedback3D');
+
+      header3D.setAttribute('value', `AWARENESS QUIZ: QUESTION ${index + 1} OF 5`);
+      question3D.setAttribute('value', q.question);
+      optA.setAttribute('text', 'value', `A) ${q.options[0]}; align: left; xOffset: 0.15; width: 2.7; color: #e2e8f0`);
+      optB.setAttribute('text', 'value', `B) ${q.options[1]}; align: left; xOffset: 0.15; width: 2.7; color: #e2e8f0`);
+      optC.setAttribute('text', 'value', `C) ${q.options[2]}; align: left; xOffset: 0.15; width: 2.7; color: #e2e8f0`);
+      feedback3D.setAttribute('value', '');
+
+      showCaption('QUIZ', `Question ${index + 1}: ${q.question}`);
+
+      renderDesktopCard(
+        `AWARENESS QUIZ (QUESTION ${index + 1}/5)`,
+        q.question,
+        'Select the most medically and socially accurate response.',
+        q.options.map((optText, optIdx) => ({
+          text: `${String.fromCharCode(65 + optIdx)}) ${optText}`,
+          class: 'btn-choice',
+          action: () => handleQuizAnswer(optIdx)
+        }))
+      );
+    }
+
+    function handleQuizAnswer(selectedIndex) {
+      const q = QUIZ_QUESTIONS[GameState.quizCurrentIndex];
+      const isCorrect = (selectedIndex === q.correctIndex);
+
+      if (isCorrect) {
+        Audio.playChimeSuccess();
+        GameState.score += 20; // 5 questions = 100% total
+      } else {
+        Audio.playWarningTone();
+      }
+
+      GameState.quizAnswers.push({
+        questionIndex: GameState.quizCurrentIndex,
+        selected: selectedIndex,
+        correct: isCorrect
+      });
+
+      const feedback3D = document.getElementById('quizFeedback3D');
+      feedback3D.setAttribute('value', (isCorrect ? 'CORRECT! ' : 'INCORRECT. ') + q.explanation);
+      feedback3D.setAttribute('color', isCorrect ? '#10b981' : '#f87171');
+
+      showCaption('FEEDBACK', (isCorrect ? 'Correct! ' : 'Incorrect. ') + q.explanation, 5000);
+
+      renderDesktopCard(
+        isCorrect ? 'CORRECT ANSWER' : 'ANSWER REVIEW',
+        isCorrect ? 'Well done!' : 'Important Educational Point',
+        q.explanation,
+        [
+          {
+            text: (GameState.quizCurrentIndex < 4 ? 'NEXT QUESTION' : 'VIEW FINAL SCORE'),
+            class: 'btn-primary',
+            action: () => {
+              GameState.quizCurrentIndex++;
+              if (GameState.quizCurrentIndex < QUIZ_QUESTIONS.length) {
+                loadQuizQuestion(GameState.quizCurrentIndex);
+              } else {
+                transitionToScene(GAME_STATES.AWARENESS_SCORE);
+              }
+            }
+          }
+        ]
+      );
+    }
+
+    function renderScoreScreen() {
+      const percent = GameState.score;
+      const correctCount = GameState.quizAnswers.filter(a => a.correct).length;
+
+      document.getElementById('finalScorePercent3D').setAttribute('value', `${percent}%`);
+      document.getElementById('finalScoreSummary3D').setAttribute('value', `${correctCount} of 5 Questions Correct`);
+
+      showCaption('SCORE', `Awareness Score: ${percent}%. ${correctCount} of 5 questions correct.`);
+
+      renderDesktopCard(
+        'AWARENESS SCORE',
+        `Final Score: ${percent}%`,
+        `You answered ${correctCount} of 5 questions correctly.\n\n*This score is educational only and is not a medical or psychological measurement.*\nRecognizing that impairment degrades judgment empowers you to protect yourself and others from unnecessary harm.`,
+        [
+          { text: 'CONTINUE TO FINAL MESSAGE', class: 'btn-primary', action: () => transitionToScene(GAME_STATES.FINAL) }
+        ]
+      );
+    }
+
+    /* ==========================================================================
+       10. COMFORT & ACCESSIBILITY CONTROLS
+       ========================================================================== */
+    function initComfortControls() {
+      const modal = document.getElementById('comfortModal');
+      const btnComfort = document.getElementById('btnComfort');
+      const btnCloseComfort = document.getElementById('btnCloseComfort');
+
+      btnComfort.onclick = () => modal.classList.toggle('visible');
+      btnCloseComfort.onclick = () => modal.classList.remove('visible');
+
+      // Audio Toggle Button on Header
+      const btnAudio = document.getElementById('btnAudioToggle');
+      btnAudio.onclick = () => {
+        GameState.audioEnabled = !GameState.audioEnabled;
+        Audio.setAudioEnabled(GameState.audioEnabled);
+        btnAudio.textContent = GameState.audioEnabled ? 'Sound: ON' : 'Sound: OFF';
+        btnAudio.classList.toggle('active', GameState.audioEnabled);
+        document.getElementById('toggleModalAudio').checked = GameState.audioEnabled;
+      };
+
+      // Modal Toggles
+      document.getElementById('toggleComfortMode').onchange = (e) => {
+        GameState.comfortMode = e.target.checked;
+      };
+
+      document.getElementById('toggleReducedEffects').onchange = (e) => {
+        GameState.reducedEffects = e.target.checked;
+        setImpairmentActive(GameState.isImpaired);
+      };
+
+      document.getElementById('toggleModalAudio').onchange = (e) => {
+        GameState.audioEnabled = e.target.checked;
+        Audio.setAudioEnabled(GameState.audioEnabled);
+        btnAudio.textContent = GameState.audioEnabled ? 'Sound: ON' : 'Sound: OFF';
+        btnAudio.classList.toggle('active', GameState.audioEnabled);
+      };
+
+      document.getElementById('toggleCaptions').onchange = (e) => {
+        GameState.captionsEnabled = e.target.checked;
+        if (!GameState.captionsEnabled) {
+          document.getElementById('captionsContainer').classList.add('hidden');
+        }
+      };
+
+      // Skip simulation directly to consequences
+      document.getElementById('btnModalSkipSim').onclick = () => {
+        modal.classList.remove('visible');
+        transitionToScene(GAME_STATES.CONSEQUENCE);
+      };
+
+      // Reset
+      document.getElementById('btnModalReset').onclick = () => {
+        modal.classList.remove('visible');
+        transitionToScene(GAME_STATES.WELCOME);
+      };
+
+      // Exit button on top bar
+      document.getElementById('btnExitExperience').onclick = () => {
+        transitionToScene(GAME_STATES.WELCOME);
+      };
+    }
+
+    function toggleReducedEffectsFromHud() {
+      GameState.reducedEffects = !GameState.reducedEffects;
+      document.getElementById('toggleReducedEffects').checked = GameState.reducedEffects;
+      setImpairmentActive(GameState.isImpaired);
+      showCaption('COMFORT', GameState.reducedEffects ? 'Reduced visual effects enabled.' : 'Standard effects restored.');
+    }
+
+    function openInfoModal() {
+      document.getElementById('infoModal').classList.add('visible');
+    }
+
+    document.getElementById('btnCloseInfo').onclick = () => {
+      document.getElementById('infoModal').classList.remove('visible');
+    };
+
+    /* ==========================================================================
+       11. WEBXR DETECTION & META QUEST 3S SETUP
+       ========================================================================== */
+    function setupWebXR() {
+      const vrStatusBadge = document.getElementById('vrStatusBadge');
+      const btnEnterVR = document.getElementById('btnEnterVR');
+      const scene = document.querySelector('a-scene');
+
+      if (navigator.xr && navigator.xr.isSessionSupported) {
+        navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+          if (supported) {
+            vrStatusBadge.textContent = 'Quest 3S / WebXR Ready';
+            vrStatusBadge.classList.remove('unavailable');
+            btnEnterVR.style.display = 'inline-flex';
+          } else {
+            vrStatusBadge.textContent = 'VR unavailable (Desktop Mode)';
+            vrStatusBadge.classList.add('unavailable');
+          }
+        }).catch(() => {
+          vrStatusBadge.textContent = 'VR unavailable (Desktop Mode)';
+          vrStatusBadge.classList.add('unavailable');
+        });
+      } else {
+        vrStatusBadge.textContent = 'VR unavailable (Desktop Mode)';
+        vrStatusBadge.classList.add('unavailable');
+      }
+
+      btnEnterVR.onclick = () => {
+        Audio.init();
+        Audio.playSelect();
+        if (scene) {
+          scene.enterVR();
+        }
+      };
+
+      // Detect session changes
+      scene.addEventListener('enter-vr', () => {
+        GameState.isVR = true;
+        vrStatusBadge.textContent = 'In Immersive VR Mode';
+        showCaption('WEBXR', 'Immersive VR session started. Use Quest 3S controllers to interact.');
+      });
+
+      scene.addEventListener('exit-vr', () => {
+        GameState.isVR = false;
+        vrStatusBadge.textContent = 'Desktop Mode';
+      });
+    }
+
+    /* ==========================================================================
+       12. A-FRAME 3D INTERACTIVE CLICK HANDLERS
+       ========================================================================== */
+    function attach3DInteractions() {
+      // Welcome 3D Buttons
+      const btn3DEnterExp = document.getElementById('btn3DEnterExp');
+      if (btn3DEnterExp) btn3DEnterExp.onclick = () => transitionToScene(GAME_STATES.SAFETY_DISCLAIMER);
+
+      const btn3DAbout = document.getElementById('btn3DAbout');
+      if (btn3DAbout) btn3DAbout.onclick = () => openInfoModal();
+
+      // Disclaimer 3D Buttons
+      const btn3DUnderstand = document.getElementById('btn3DUnderstand');
+      if (btn3DUnderstand) btn3DUnderstand.onclick = () => transitionToScene(GAME_STATES.SCENARIO_SELECTION);
+
+      const btn3DExitDisclaimer = document.getElementById('btn3DExitDisclaimer');
+      if (btn3DExitDisclaimer) btn3DExitDisclaimer.onclick = () => transitionToScene(GAME_STATES.WELCOME);
+
+      // Scenario Selection 3D Card
+      const cardPeerPressure = document.getElementById('cardPeerPressure');
+      if (cardPeerPressure) cardPeerPressure.onclick = () => transitionToScene(GAME_STATES.PEER_PRESSURE);
+
+      // Peer Pressure 3D Choices
+      const btn3DRefuse = document.getElementById('btn3DRefuse');
+      if (btn3DRefuse) btn3DRefuse.onclick = () => handleRefusalChoice('REFUSE');
+
+      const btn3DWalkAway = document.getElementById('btn3DWalkAway');
+      if (btn3DWalkAway) btn3DWalkAway.onclick = () => handleRefusalChoice('WALK_AWAY');
+
+      const btn3DAskHelp = document.getElementById('btn3DAskHelp');
+      if (btn3DAskHelp) btn3DAskHelp.onclick = () => handleRefusalChoice('ASK_HELP');
+
+      const btn3DEnterSim = document.getElementById('btn3DEnterSim');
+      if (btn3DEnterSim) btn3DEnterSim.onclick = () => handleRefusalChoice('ENTER_SIM');
+
+      // Cognitive Challenge 3D Targets
+      TARGETS.forEach(t => {
+        const el = document.getElementById(t.id);
+        if (el) {
+          el.addEventListener('click', () => handleCognitiveTargetClick(t.id));
+          el.addEventListener('mouseenter', () => Audio.playHover());
+        }
+      });
+
+      // Decision 3D Choices
+      const btn3DRisky = document.getElementById('btn3DRisky');
+      if (btn3DRisky) btn3DRisky.onclick = () => handleConsequenceChoice('RISKY');
+
+      const btn3DAskHelpRide = document.getElementById('btn3DAskHelpRide');
+      if (btn3DAskHelpRide) btn3DAskHelpRide.onclick = () => handleConsequenceChoice('HELP');
+
+      const btn3DSafeAlt = document.getElementById('btn3DSafeAlt');
+      if (btn3DSafeAlt) btn3DSafeAlt.onclick = () => handleConsequenceChoice('SAFE_ALT');
+
+      // Consequence Proceed Button
+      const btn3DProceedReality = document.getElementById('btn3DProceedReality');
+      if (btn3DProceedReality) btn3DProceedReality.onclick = () => transitionToScene(GAME_STATES.REALITY_CHECK);
+
+      // Reality Check Proceed Button
+      const btn3DProceedQuiz = document.getElementById('btn3DProceedQuiz');
+      if (btn3DProceedQuiz) btn3DProceedQuiz.onclick = () => transitionToScene(GAME_STATES.QUIZ);
+
+      // Quiz 3D Options
+      const optA = document.getElementById('quizOpt3D_A');
+      if (optA) optA.onclick = () => handleQuizAnswer(0);
+
+      const optB = document.getElementById('quizOpt3D_B');
+      if (optB) optB.onclick = () => handleQuizAnswer(1);
+
+      const optC = document.getElementById('quizOpt3D_C');
+      if (optC) optC.onclick = () => handleQuizAnswer(2);
+
+      const btn3DProceedFinal = document.getElementById('btn3DProceedFinal');
+      if (btn3DProceedFinal) btn3DProceedFinal.onclick = () => transitionToScene(GAME_STATES.FINAL);
+
+      // Final Screen 3D Buttons
+      const btn3DExperienceAgain = document.getElementById('btn3DExperienceAgain');
+      if (btn3DExperienceAgain) btn3DExperienceAgain.onclick = () => transitionToScene(GAME_STATES.WELCOME);
+
+      const btn3DSafetyInfoFinal = document.getElementById('btn3DSafetyInfoFinal');
+      if (btn3DSafetyInfoFinal) btn3DSafetyInfoFinal.onclick = () => openInfoModal();
+
+      const btn3DExitFinal = document.getElementById('btn3DExitFinal');
+      if (btn3DExitFinal) btn3DExitFinal.onclick = () => transitionToScene(GAME_STATES.WELCOME);
+
+      // Hover feedback for all .clickable entities in 3D
+      document.querySelectorAll('.clickable').forEach(el => {
+        el.addEventListener('mouseenter', () => {
+          Audio.playHover();
+          el.setAttribute('scale', '1.06 1.06 1.06');
+        });
+        el.addEventListener('mouseleave', () => {
+          el.setAttribute('scale', '1 1 1');
+        });
+      });
+    }
+
+    /* ==========================================================================
+       13. INITIALIZATION
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      initComfortControls();
+      setupWebXR();
+      attach3DInteractions();
+      transitionToScene(GAME_STATES.WELCOME);
+
+      // Unlock AudioContext on first user interaction
+      document.body.addEventListener('click', () => {
+        Audio.init();
+        Audio.resume();
+      }, { once: true });
+    });
+  </script>
+</body>
+</html>
